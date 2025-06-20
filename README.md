@@ -21,3 +21,13 @@
 ### REST API Service
 
 - `POST /run` \-  Отправить код на проверку
+
+&nbsp;
+&nbsp;
+## Docker CLI:
+###  PostgreSQL
+`$ docker run --name postgres2 -p 5432:5432 -e POSTGRES_USER=auth -e POSTGRES_PASSWORD=123  -e POSTGRES_DB=auth -d postgres:16`
+
+###  RabbitMQ
+`$ docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management`
+
