@@ -2,28 +2,37 @@ package main
 
 import (
 	"fmt"
+	"github.com/gofiber/fiber/v2"
 	"log"
 	"os"
 
 	"encoding/json"
 
-	"github.com/gofiber/fiber/v2"
+	_ "github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/streadway/amqp"
 )
 
+const taskQueueName = "task_queue"
+
 type Code struct {
-	IdTask   string `json:"id_task"`
-	TpRunner string `json:"tp_runner"`
-	Code     string `json:"code"`
-	Test     string `json:"test"`
+	//IdTask   string `json:"id_task"`
+	//TpRunner string `json:"tp_runner"`
+	Code string `json:"code"`
+	//Test     string `json:"test"`
+}
+
+type SuccessResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Queue   string `json:"queue"`
 }
 
 func main() {
 	amqpServerURL := os.Getenv("AMQP_SERVER_URL")
 	if amqpServerURL == "" {
-		amqpServerURL = "amqp://admin:admin@localhost:5672/" // Default URL if not set
+		amqpServerURL = "amqp://admin:admin@localhost:5672/"
 	}
 
 	connectRabbitMQ, err := amqp.Dial(amqpServerURL)
@@ -39,7 +48,7 @@ func main() {
 	defer channelRabbitMQ.Close()
 
 	_, err = channelRabbitMQ.QueueDeclare(
-		"QueueService1",
+		taskQueueName,
 		true,
 		false,
 		false,
@@ -67,19 +76,25 @@ func main() {
 	})
 
 	app.Post("/run", func(c *fiber.Ctx) error {
-		//todo:  Тестирование ручки на взаимодействие
-		// c клиентом. Расширить json добавив ID_USER
-		// из AUTH SERVICE
-
 		mess := new(Code)
 
-		_ = c.BodyParser(mess)
-		jsonBody, err := json.Marshal(mess)
-		if err != nil {
-			log.Fatalf("Error encoding JSON: %v", err)
+		if err := c.BodyParser(mess); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "Invalid request body",
+			})
 		}
 
-		fmt.Println(mess.Code)
+		jsonBody, err := json.Marshal(mess)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Error encoding message",
+			})
+		}
+
+		fmt.Println("Received code:", mess.Code)
+
 		message := amqp.Publishing{
 			ContentType: "application/json",
 			Body:        jsonBody,
@@ -87,16 +102,26 @@ func main() {
 
 		err = channelRabbitMQ.Publish(
 			"",
-			"QueueService1",
+			taskQueueName,
 			false,
 			false,
 			message,
 		)
+
 		if err != nil {
-			return err
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Failed to publish message to queue",
+			})
 		}
 
-		return nil
+		response := SuccessResponse{
+			Success: true,
+			Message: "Code successfully added to queue",
+			Queue:   taskQueueName,
+		}
+
+		return c.Status(fiber.StatusOK).JSON(response)
 	})
 
 	log.Fatal(app.Listen(":3000"))

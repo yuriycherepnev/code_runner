@@ -50,9 +50,8 @@
             console.log("Disconnected from WebSocket server");
         };
 
-        // Function to fetch the code snippet from the server
         function fetchCode() {
-            fetch('/task/01975b05-647e-7ed5-abdd-f412a8a4882b') // Assuming snippet ID is 1
+            fetch('/task/01975b05-647e-7ed5-abdd-f412a8a4882b')
                 .then(response => response.json())
                 .then(data => {
                     editor.setValue(atob(JSON.parse(data.code).code));
@@ -60,10 +59,9 @@
                 .catch(error => console.error('Error fetching code:', error));
         }
 
-        // Function to update the code snippet on the server
         function runCode() {
             fetch('http://127.0.0.1:3000/run', {
-                method: 'GET',
+                method: 'POST',
                    headers: {
                      'Content-Type': 'application/json',
                    },
@@ -71,12 +69,12 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log(data);
                 alert(data.message);
             })
             .catch(error => console.error('Error updating code:', error));
         }
-          
-                   
+
         function sendMessage() {
             var messageInput = document.getElementById("codeEditor");
             websocket.send("01975b05-647e-7ed5-abdd-f412a8a4882b");
@@ -89,9 +87,6 @@
         // Fetch code on page load
         fetchCode();
         setTimeout(sendMessage, 1000);
-   
-       
-
     </script>
 </body>
 </html>
