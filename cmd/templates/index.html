@@ -27,13 +27,13 @@
     <div id="messages"></div>
 
     <script>
-        var editor = CodeMirror.fromTextArea(document.getElementById("codeEditor"), {
-            mode:  "javascript",
+        const editor = CodeMirror.fromTextArea(document.getElementById("codeEditor"), {
+            mode: "javascript",
             lineNumbers: true,
-			theme: "default"
+            theme: "default"
         });
 
-        var websocket = new WebSocket("ws://localhost:8081/ws");
+        const websocket = new WebSocket("ws://localhost:8081/ws");
 
         websocket.onopen = function(event) {
             console.log("Connected to WebSocket server");
@@ -76,7 +76,7 @@
         }
 
         function sendMessage() {
-            var messageInput = document.getElementById("codeEditor");
+            const messageInput = document.getElementById("codeEditor");
             websocket.send("01975b05-647e-7ed5-abdd-f412a8a4882b");
         // Fetch code on page load
         //fetchCode();

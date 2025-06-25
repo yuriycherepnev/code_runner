@@ -3,18 +3,20 @@ package main
 import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	_ "github.com/gofiber/fiber/v2"
 	"log"
 	"os"
 
 	"encoding/json"
 
-	_ "github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/streadway/amqp"
 )
 
 const taskQueueName = "task_queue"
+const amqpServerURL = "amqp://guest:guest@localhost:5672/"
+const amqpServerKey = "AMQP_SERVER_URL"
 
 type Code struct {
 	//IdTask   string `json:"id_task"`
@@ -30,12 +32,12 @@ type SuccessResponse struct {
 }
 
 func main() {
-	amqpServerURL := os.Getenv("AMQP_SERVER_URL")
-	if amqpServerURL == "" {
-		amqpServerURL = "amqp://admin:admin@localhost:5672/"
+	amqpServer := os.Getenv(amqpServerKey)
+	if amqpServer == "" {
+		amqpServer = amqpServerURL
 	}
 
-	connectRabbitMQ, err := amqp.Dial(amqpServerURL)
+	connectRabbitMQ, err := amqp.Dial(amqpServer)
 	if err != nil {
 		panic(err)
 	}

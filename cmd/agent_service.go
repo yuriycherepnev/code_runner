@@ -12,16 +12,9 @@ import (
 )
 
 func main() {
-	type Code struct {
-		IDTask   string `json:"id_task"`
-		TpRunner string `json:"tp_runner"`
-		Code     string `json:"code"`
-		Test     string `json:"test"`
-	}
-
 	amqpServerURL := os.Getenv("AMQP_SERVER_URL")
 	if amqpServerURL == "" {
-		amqpServerURL = "amqp://guest:guest@localhost:5672/" // Default URL if not set
+		amqpServerURL = "amqp://admin:admin@localhost:5672/"
 	}
 
 	connectRabbitMQ, err := amqp.Dial(amqpServerURL)
@@ -38,19 +31,17 @@ func main() {
 	defer channelRabbitMQ.Close()
 
 	messages, err := channelRabbitMQ.Consume(
-		taskQueueName, // queue name
-		"",            // consumer
-		true,          // auto-ack
-		false,         // exclusive
-		false,         // no local
-		false,         // no wait
-		nil,           // arguments
+		taskQueueName,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		log.Println(err)
 	}
-
-	// Build a welcome message.
 	log.Println("Successfully connected to RabbitMQ")
 	log.Println("Waiting for messages")
 
@@ -84,17 +75,11 @@ func main() {
 }
 
 func mkdir(dirName string) {
-	// Имя директории, которую нужно создать
-
-	// Права доступа к директории (0755 - чтение, запись, выполнение для владельца, чтение и выполнение для группы и остальных)
 	permissions := os.ModeDir | 0755
-
-	// Создание директории
 	err := os.Mkdir(dirName, permissions)
 	if err != nil {
 		log.Printf("Ошибка при создании директории: %v", err)
 	}
-
 	fmt.Printf("Директория '%s' успешно создана.\n", dirName)
 }
 
