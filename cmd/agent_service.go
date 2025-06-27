@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"log"
 	"os"
 	"os/exec"
@@ -45,28 +46,27 @@ func main() {
 	log.Println("Successfully connected to RabbitMQ")
 	log.Println("Waiting for messages")
 
-	// Make a channel to receive messages into infinite loop.
 	forever := make(chan bool)
 
 	go func() {
 		for message := range messages {
-			// For example, show received message in a console.
 			log.Printf(" > Received message: %s\n", message.Body)
-			// Создание экземпляра структуры Task
 
-			var code_obj Code
+			var codeObj Code
 
-			// Разбор JSON строки в структуру
-			err := json.Unmarshal([]byte(message.Body), &code_obj)
+			err := json.Unmarshal([]byte(message.Body), &codeObj)
 			if err != nil {
 				log.Fatalf("Ошибка при разборе JSON: %v", err)
 			}
-			mkdir(code_obj.IDTask)
-			mkfile(code_obj.IDTask, code_obj.Code, "main.py")
-			mkfile(code_obj.IDTask, code_obj.Test, "test_hello.py")
-			run(code_obj.IDTask)
 
-			fmt.Println(code_obj.Code)
+			uid := uuid.New()
+			dirName := uid.String()
+			makeDir(dirName)
+			makeFile(dirName, codeObj.Code, "main.py")
+			//TODO написать тест для кода
+			//mkfile(dirName, code_obj.Test, "test_hello.py")
+			//run(dirName)
+			fmt.Println(codeObj.Code)
 
 		}
 	}()
@@ -74,7 +74,7 @@ func main() {
 	<-forever
 }
 
-func mkdir(dirName string) {
+func makeDir(dirName string) {
 	permissions := os.ModeDir | 0755
 	err := os.Mkdir(dirName, permissions)
 	if err != nil {
@@ -83,56 +83,34 @@ func mkdir(dirName string) {
 	fmt.Printf("Директория '%s' успешно создана.\n", dirName)
 }
 
-func mkfile(dirName string, base64String string, fName string) {
-
-	// Декодирование Base64 строки
+func makeFile(dirName string, base64String string, fileName string) {
 	decodedBytes, er := base64.StdEncoding.DecodeString(base64String)
 	if er != nil {
 		log.Fatalf("Ошибка при декодировании Base64: %v", er)
 	}
-
-	// Преобразование байтов в строку
 	fileContent := string(decodedBytes)
-
-	// Права доступа к файлу (0644 - чтение и запись для владельца, чтение для группы и остальных)
-	fileName := "./" + dirName + "/" + fName
+	fullName := "./" + dirName + "/" + fileName
 	permissions := 0644
-
-	// Преобразование содержимого в слайс байтов
 	data := []byte(fileContent)
-
-	// Создание файла и запись содержимого
-	err := os.WriteFile(fileName, data, os.FileMode(permissions))
+	err := os.WriteFile(fullName, data, os.FileMode(permissions))
 	if err != nil {
 		log.Fatalf("Ошибка при создании файла: %v", err)
 	}
-
 	fmt.Printf("Файл '%s' успешно создан с содержимым.\n", fileName)
-
 }
 
-func run(idTask string) {
-
-	// Получение текущей рабочей директории
+func run(taskDir string) {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("Ошибка при получении текущей директории: %v", err)
 	}
-
-	dir := currentDir + "/" + idTask
-
-	// Изменение текущей рабочей директории
+	dir := currentDir + "/" + taskDir
 	err = os.Chdir(dir)
 	if err != nil {
 		log.Fatalf("Ошибка при изменении директории: %v", err)
 	}
-
-	// Команда для запуска Python с кодом
 	fileName := "test_hello.py"
-
 	cmd := exec.Command("python", "-m", "unittest", fileName)
-
-	// Запуск команды и получение вывода
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Ошибка при выполнении Python кода: %v\nВывод: %s", err, string(output))

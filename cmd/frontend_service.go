@@ -66,7 +66,6 @@ func main() {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
-			// Пример использования: установка и получение значения
 			err = redisDb.Set(ctx, id, code, 0).Err()
 			if err != nil {
 				fmt.Println("Ошибка при установке значения:", err)
@@ -98,9 +97,11 @@ func main() {
 	})
 
 	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{})
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"idUser":   22,
+			"userName": "Yuriy",
+		})
 	})
 
-	// Запуск сервера
 	router.Run(":8081")
 }

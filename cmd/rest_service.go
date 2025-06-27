@@ -15,14 +15,13 @@ import (
 )
 
 const taskQueueName = "task_queue"
-const amqpServerURL = "amqp://guest:guest@localhost:5672/"
+const amqpServerURL = "amqp://admin:admin@localhost:5672/"
 const amqpServerKey = "AMQP_SERVER_URL"
 
 type Code struct {
-	//IdTask   string `json:"id_task"`
-	//TpRunner string `json:"tp_runner"`
-	Code string `json:"code"`
-	//Test     string `json:"test"`
+	IdUser string `json:"id_user"`
+	IdTask string `json:"id_task"`
+	Code   string `json:"code"`
 }
 
 type SuccessResponse struct {
@@ -70,7 +69,7 @@ func main() {
 	}))
 
 	app.Use(
-		logger.New(), // add simple logger
+		logger.New(),
 	)
 
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -95,7 +94,7 @@ func main() {
 			})
 		}
 
-		fmt.Println("Received code:", mess.Code)
+		fmt.Println("Received message:", mess)
 
 		message := amqp.Publishing{
 			ContentType: "application/json",
