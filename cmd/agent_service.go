@@ -9,12 +9,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 const taskQueueCallbackName = "task_queue_callback"
 const taskQueueName = "task_queue"
-const amqpServerURL = "amqp://admin:admin@localhost:5672/"
-const amqpServerKey = "AMQP_SERVER_URL"
 
 type Code struct {
 	IdUser string `json:"id_user"`
@@ -35,17 +34,16 @@ func main() {
 	}
 
 	connectRabbitMQ, err := amqp.Dial(amqpServerURL)
-
 	if err != nil {
 		panic(err)
 	}
 	defer connectRabbitMQ.Close()
 
 	channelRabbitMQ, err := connectRabbitMQ.Channel()
-
 	if err != nil {
 		panic(err)
 	}
+	defer channelRabbitMQ.Close()
 
 	_, err = channelRabbitMQ.QueueDeclare(
 		taskQueueCallbackName,
@@ -58,8 +56,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	defer channelRabbitMQ.Close()
 
 	messages, err := channelRabbitMQ.Consume(
 		taskQueueName,
@@ -84,25 +80,42 @@ func main() {
 
 			err := json.Unmarshal([]byte(message.Body), &codeObj)
 			if err != nil {
-				log.Fatalf("error: %v", err)
+				log.Printf("Error unmarshaling message: %v", err)
+				continue
 			}
+
 			uid := uuid.New()
 			fileName := uid.String() + ".py"
 			dirName := "code"
-			makeFile(dirName, fileName, codeObj.Code)
-			runCode(dirName, fileName)
+
+			// Создаем директорию, если её нет
+			if err := os.MkdirAll(dirName, 0755); err != nil {
+				log.Printf("Error creating directory: %v", err)
+				continue
+			}
+
+			if err := makeFile(dirName, fileName, codeObj.Code); err != nil {
+				log.Printf("Error creating file: %v", err)
+				continue
+			}
+
+			success, runMessage := runCode(dirName, fileName)
+
+			// Удаляем файл в любом случае
+			if err := deleteFile(dirName, fileName); err != nil {
+				log.Printf("Error deleting file: %v", err)
+			}
 
 			response := SuccessResponse{
-				Success: true,
-				Message: "Code successfully run",
+				Success: success,
+				Message: runMessage,
 				Queue:   taskQueueCallbackName,
 			}
-			jsonBody, err := json.Marshal(response)
 
-			fmt.Println(jsonBody)
-			message := amqp.Publishing{
-				ContentType: "application/json",
-				Body:        jsonBody,
+			jsonBody, err := json.Marshal(response)
+			if err != nil {
+				log.Printf("Error marshaling response: %v", err)
+				continue
 			}
 
 			err = channelRabbitMQ.Publish(
@@ -110,53 +123,50 @@ func main() {
 				taskQueueCallbackName,
 				false,
 				false,
-				message,
+				amqp.Publishing{
+					ContentType: "application/json",
+					Body:        jsonBody,
+				},
 			)
+			if err != nil {
+				log.Printf("Error publishing message: %v", err)
+			}
 		}
 	}()
 
 	<-forever
 }
 
-func makeFile(dirName string, fileName string, base64String string) {
-	decodedBytes, er := base64.StdEncoding.DecodeString(base64String)
-	if er != nil {
-		log.Fatalf("makeFile error: %v", er)
-	}
-	fileContent := string(decodedBytes)
-	fullName := "./" + dirName + "/" + fileName
-	permissions := 0644
-	data := []byte(fileContent)
-	err := os.WriteFile(fullName, data, os.FileMode(permissions))
+func makeFile(dirName string, fileName string, base64String string) error {
+	decodedBytes, err := base64.StdEncoding.DecodeString(base64String)
 	if err != nil {
-		return
+		return fmt.Errorf("base64 decode error: %v", err)
 	}
+
+	fullPath := filepath.Join(dirName, fileName)
+	err = os.WriteFile(fullPath, decodedBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("write file error: %v", err)
+	}
+	return nil
+}
+
+func deleteFile(dirName string, fileName string) error {
+	fullPath := filepath.Join(dirName, fileName)
+	err := os.Remove(fullPath)
+	if err != nil {
+		return fmt.Errorf("remove file error: %v", err)
+	}
+	return nil
 }
 
 func runCode(dirName string, fileName string) (bool, string) {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("Ошибка при получении текущей директории: %v", err)
-	}
-	dir := currentDir + "/" + dirName
-	err = os.Chdir(dir)
-	if err != nil {
-		log.Fatalf("Ошибка при изменении директории: %v", err)
-	}
-	//fileName := "test_hello.py"
-	//cmd := exec.Command("python", "-m", "unittest", fileName)
+	fullPath := filepath.Join(dirName, fileName)
 
-	cmd := exec.Command("python3", fileName)
+	cmd := exec.Command("python3", fullPath)
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
-		log.Fatalf("Ошибка при выполнении Python кода: %v\nВывод: %s", err, string(output))
+		return false, fmt.Sprintf("%s\nError: %v", output, err)
 	}
-
-	// Вывод результата
-	// todo: записать в топик RMQ id_user_id_UUID
-	// {  data: output}
-
 	return true, string(output)
-
 }
