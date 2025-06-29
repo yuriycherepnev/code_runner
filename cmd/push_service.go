@@ -10,8 +10,6 @@ import (
 	"os"
 )
 
-const taskQueueCallbackName = "task_queue_callback"
-
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true

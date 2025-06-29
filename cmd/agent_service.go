@@ -6,26 +6,12 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/streadway/amqp"
+	"golang/config"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
-
-const taskQueueCallbackName = "task_queue_callback"
-const taskQueueName = "task_queue"
-
-type Code struct {
-	IdUser string `json:"id_user"`
-	IdTask string `json:"id_task"`
-	Code   string `json:"code"`
-}
-
-type SuccessResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Queue   string `json:"queue"`
-}
 
 func main() {
 	amqpServerURL := os.Getenv("AMQP_SERVER_URL")
@@ -46,7 +32,7 @@ func main() {
 	defer channelRabbitMQ.Close()
 
 	_, err = channelRabbitMQ.QueueDeclare(
-		taskQueueCallbackName,
+		config.TaskQueueCallbackName,
 		true,
 		false,
 		false,
@@ -109,7 +95,7 @@ func main() {
 			response := SuccessResponse{
 				Success: success,
 				Message: runMessage,
-				Queue:   taskQueueCallbackName,
+				Queue:   config.TaskQueueCallbackName,
 			}
 
 			jsonBody, err := json.Marshal(response)
