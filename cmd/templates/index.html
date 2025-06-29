@@ -39,13 +39,14 @@
             theme: "default"
         });
 
-        const websocket = new WebSocket("ws://localhost:8081/ws");
+        const websocket = new WebSocket("ws://localhost:8082/ws");
 
         websocket.onopen = function(event) {
             console.log("Connected to WebSocket server");
         };
 
         websocket.onmessage = function(event) {
+            console.log(222);
             var messages = document.getElementById("messages");
             var message = document.createElement("p");
             message.textContent = "Received: " + event.data;
