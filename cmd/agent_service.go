@@ -1,12 +1,12 @@
 package main
 
 import (
+	"code_runner/config"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/streadway/amqp"
-	"golang/config"
 	"log"
 	"os"
 	"os/exec"
@@ -44,7 +44,7 @@ func main() {
 	}
 
 	messages, err := channelRabbitMQ.Consume(
-		taskQueueName,
+		config.TaskQueueName,
 		"",
 		true,
 		false,
@@ -62,7 +62,7 @@ func main() {
 
 	go func() {
 		for message := range messages {
-			var codeObj Code
+			var codeObj config.MessageCode
 
 			err := json.Unmarshal([]byte(message.Body), &codeObj)
 			if err != nil {
@@ -92,7 +92,7 @@ func main() {
 				log.Printf("Error deleting file: %v", err)
 			}
 
-			response := SuccessResponse{
+			response := config.SuccessResponse{
 				Success: success,
 				Message: runMessage,
 				Queue:   config.TaskQueueCallbackName,
@@ -106,7 +106,7 @@ func main() {
 
 			err = channelRabbitMQ.Publish(
 				"",
-				taskQueueCallbackName,
+				config.TaskQueueCallbackName,
 				false,
 				false,
 				amqp.Publishing{
