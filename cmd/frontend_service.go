@@ -4,20 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"golang/config"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
-)
-
-const (
-	dbHost     = "localhost"
-	dbPort     = 5432
-	dbUser     = "root"
-	dbPassword = "root"
-	dbName     = "mydb"
 )
 
 func main() {
@@ -36,8 +29,7 @@ func main() {
 
 	fmt.Println("Успешное подключение к Redis! Ответ:", pong)
 
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	connStr := config.GetDbUrl()
 
 	postgresDb, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -66,7 +58,6 @@ func main() {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
-			// Пример использования: установка и получение значения
 			err = redisDb.Set(ctx, id, code, 0).Err()
 			if err != nil {
 				fmt.Println("Ошибка при установке значения:", err)
@@ -98,9 +89,11 @@ func main() {
 	})
 
 	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{})
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"idUser":   22,
+			"userName": "Yuriy",
+		})
 	})
 
-	// Запуск сервера
 	router.Run(":8081")
 }

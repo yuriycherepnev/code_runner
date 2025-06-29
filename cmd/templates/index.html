@@ -19,27 +19,34 @@
     </style>
 </head>
 <body>
-    <h1>Code Editor</h1>
+    <h1>Welcome, {{ .userName }}!</h1>
     <textarea id="codeEditor"></textarea>
-    <button onclick="updateCode()">Update Code</button>
+    <!-- TODO добавить сохранение кода и вывод кода -->
+<!--    <button onclick="updateCode()">Update Code</button>-->
     <button onclick="runCode()">Run</button>
     <button onclick="sendMessage()">Test WS</button>
     <div id="messages"></div>
 
     <script>
+        const userData = {
+            userName: "{{ .userName }}",
+            idUser: "{{ .idUser }}",
+        };
+
         const editor = CodeMirror.fromTextArea(document.getElementById("codeEditor"), {
             mode: "javascript",
             lineNumbers: true,
             theme: "default"
         });
 
-        const websocket = new WebSocket("ws://localhost:8081/ws");
+        const websocket = new WebSocket("ws://localhost:8082/ws");
 
         websocket.onopen = function(event) {
             console.log("Connected to WebSocket server");
         };
 
         websocket.onmessage = function(event) {
+            console.log(222);
             var messages = document.getElementById("messages");
             var message = document.createElement("p");
             message.textContent = "Received: " + event.data;
@@ -65,7 +72,11 @@
                    headers: {
                      'Content-Type': 'application/json',
                    },
-                   body: JSON.stringify({ code: btoa(editor.getValue()) }),
+                   body: JSON.stringify({
+                       idTask: 1,
+                       idUser: userData.idUser,
+                       code: btoa(editor.getValue()),
+                   }),
             })
             .then(response => response.json())
             .then(data => {
