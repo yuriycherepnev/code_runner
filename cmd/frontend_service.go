@@ -1,6 +1,7 @@
 package main
 
 import (
+	"code_runner/config"
 	"context"
 	"database/sql"
 	"fmt"
@@ -8,30 +9,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq" // Import the PostgreSQL driver
+	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	dbHost     = "localhost"
-	dbPort     = 5432
-	dbUser     = "postgres"
-	dbPassword = "123" // Замените на свой пароль
-	dbName     = "auth"
-)
-
 func main() {
-
-	// Создание клиента Redis
-	rdb := redis.NewClient(&redis.Options{
+	redisDb := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379", // Адрес Redis сервера
 		Password: "",               // Пароль, если требуется
 		DB:       0,                // Номер базы данных
 	})
 
-	// Проверка подключения
 	ctx := context.Background()
-	pong, err := rdb.Ping(ctx).Result()
+	pong, err := redisDb.Ping(ctx).Result()
 	if err != nil {
 		fmt.Println("Ошибка подключения к Redis:", err)
 		return
@@ -39,20 +29,15 @@ func main() {
 
 	fmt.Println("Успешное подключение к Redis! Ответ:", pong)
 
-	// Строка подключения к базе данных
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	connStr := config.GetDbUrl()
 
-	// to-do: написать обращение в кеш  Redis
-	// Подключение к базе данных
-	db, err := sql.Open("postgres", connStr)
+	postgresDb, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer postgresDb.Close()
 
-	// Проверка подключения
-	err = db.Ping()
+	err = postgresDb.Ping()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,20 +47,18 @@ func main() {
 	router := gin.Default()
 	router.LoadHTMLGlob("./templates/*")
 
-	// Обработчик для получения фрагмента кода
 	router.GET("/task/:id", func(c *gin.Context) {
 		var code string
 
 		id := c.Param("id")
-		code, err := rdb.Get(ctx, id).Result()
+		code, err := redisDb.Get(ctx, id).Result()
 		if err != nil {
-			err := db.QueryRow("SELECT json_text FROM task WHERE id  = $1", id).Scan(&code)
+			err := postgresDb.QueryRow("SELECT code FROM task WHERE id  = $1", id).Scan(&code)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
-			// Пример использования: установка и получение значения
-			err = rdb.Set(ctx, id, code, 0).Err()
+			err = redisDb.Set(ctx, id, code, 0).Err()
 			if err != nil {
 				fmt.Println("Ошибка при установке значения:", err)
 				return
@@ -85,7 +68,6 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"code": code})
 	})
 
-	// Обработчик для обновления фрагмента кода
 	router.POST("/task/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		var requestBody struct {
@@ -97,7 +79,7 @@ func main() {
 			return
 		}
 
-		_, err := db.Exec("UPDATE snippets SET code = $1 WHERE id = $2", requestBody.Code, id)
+		_, err := postgresDb.Exec("UPDATE task SET code = $1 WHERE id = $2", requestBody.Code, id)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -107,9 +89,11 @@ func main() {
 	})
 
 	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{})
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"idUser":   22,
+			"userName": "Yuriy",
+		})
 	})
 
-	// Запуск сервера
-	router.Run(":8080")
+	router.Run(":8081")
 }
