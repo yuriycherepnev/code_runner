@@ -1,6 +1,7 @@
 package main
 
 import (
+	"code_runner/config"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
@@ -43,7 +44,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	defer channelRabbitMQ.Close()
 
 	messages, err := channelRabbitMQ.Consume(
-		taskQueueCallbackName,
+		config.TaskQueueCallbackName,
 		"",
 		true,
 		false,
@@ -83,18 +84,22 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	<-forever
-
 	for {
 		_, msg, err := ws.ReadMessage()
+		fmt.Println(err)
+
 		if err != nil {
 			return
 		}
+		fmt.Println(err)
+
 		err = ws.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
 			return
 		}
 	}
+
+	<-forever
 }
 
 func main() {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"code_runner/config"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/gofiber/fiber/v2"
@@ -14,26 +15,10 @@ import (
 	"github.com/streadway/amqp"
 )
 
-const taskQueueName = "task_queue"
-const amqpServerURL = "amqp://admin:admin@localhost:5672/"
-const amqpServerKey = "AMQP_SERVER_URL"
-
-type Code struct {
-	IdUser string `json:"id_user"`
-	IdTask string `json:"id_task"`
-	Code   string `json:"code"`
-}
-
-type SuccessResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Queue   string `json:"queue"`
-}
-
 func main() {
-	amqpServer := os.Getenv(amqpServerKey)
+	amqpServer := os.Getenv(config.AmqpServerKey)
 	if amqpServer == "" {
-		amqpServer = amqpServerURL
+		amqpServer = config.AmqpServerURL
 	}
 
 	connectRabbitMQ, err := amqp.Dial(amqpServer)
@@ -49,7 +34,7 @@ func main() {
 	defer channelRabbitMQ.Close()
 
 	_, err = channelRabbitMQ.QueueDeclare(
-		taskQueueName,
+		config.TaskQueueName,
 		true,
 		false,
 		false,
@@ -77,7 +62,7 @@ func main() {
 	})
 
 	app.Post("/run", func(c *fiber.Ctx) error {
-		mess := new(Code)
+		mess := new(config.MessageCode)
 
 		if err := c.BodyParser(mess); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -103,7 +88,7 @@ func main() {
 
 		err = channelRabbitMQ.Publish(
 			"",
-			taskQueueName,
+			config.TaskQueueName,
 			false,
 			false,
 			message,
@@ -116,10 +101,10 @@ func main() {
 			})
 		}
 
-		response := SuccessResponse{
+		response := config.SuccessResponse{
 			Success: true,
 			Message: "Code successfully added to queue",
-			Queue:   taskQueueName,
+			Queue:   config.TaskQueueName,
 		}
 
 		return c.Status(fiber.StatusOK).JSON(response)

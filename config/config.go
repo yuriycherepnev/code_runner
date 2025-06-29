@@ -4,8 +4,10 @@ import "fmt"
 
 const TaskQueueCallbackName = "task_queue_callback"
 const TaskQueueName = "task_queue"
+const AmqpServerURL = "amqp://admin:admin@localhost:5672/"
+const AmqpServerKey = "AMQP_SERVER_URL"
 
-type Code struct {
+type MessageCode struct {
 	IdUser string `json:"id_user"`
 	IdTask string `json:"id_task"`
 	Code   string `json:"code"`
