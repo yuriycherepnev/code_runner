@@ -15,9 +15,9 @@ import (
 
 func main() {
 	redisDb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379", // Адрес Redis сервера
-		Password: "",               // Пароль, если требуется
-		DB:       0,                // Номер базы данных
+		Addr:     config.RedisHost, // Адрес Redis сервера
+		Password: config.RedisPass, // Пароль, если требуется
+		DB:       config.RedisDb,   // Номер базы данных
 	})
 
 	ctx := context.Background()
@@ -89,7 +89,7 @@ func main() {
 	})
 
 	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{
+		c.HTML(http.StatusOK, "auth.html", gin.H{
 			"idUser":   22,
 			"userName": "Yuriy",
 		})

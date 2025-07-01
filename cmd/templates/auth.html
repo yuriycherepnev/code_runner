@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Авторизация и регистрация</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        .auth-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 350px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            border-bottom: 2px solid #4CAF50;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+        .success {
+            color: green;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        .switch-text {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+        .switch-link {
+            color: #4CAF50;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="auth-container">
+    <div class="tabs">
+        <div class="tab active" data-tab="login">Вход</div>
+        <div class="tab" data-tab="register">Регистрация</div>
+    </div>
+
+    <div id="loginForm" class="tab-content active">
+        <h2>Вход в систему</h2>
+        <form id="loginFormContent">
+            <div class="form-group">
+                <label for="loginEmail">Email:</label>
+                <input type="email" id="loginEmail" name="email" required>
+                <div id="loginEmailError" class="error"></div>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Пароль:</label>
+                <input type="password" id="loginPassword" name="password" required>
+                <div id="loginPasswordError" class="error"></div>
+            </div>
+            <button type="submit">Войти</button>
+        </form>
+        <div id="loginSuccess" class="success"></div>
+        <div class="switch-text">
+            Нет аккаунта? <span class="switch-link" data-tab="register">Зарегистрируйтесь</span>
+        </div>
+    </div>
+
+    <div id="registerForm" class="tab-content">
+        <h2>Регистрация</h2>
+        <form id="registerFormContent">
+            <div class="form-group">
+                <label for="regUsername">Имя пользователя:</label>
+                <input type="text" id="regUsername" name="username" required minlength="3">
+                <div id="regUsernameError" class="error"></div>
+            </div>
+            <div class="form-group">
+                <label for="regEmail">Email:</label>
+                <input type="email" id="regEmail" name="email" required>
+                <div id="regEmailError" class="error"></div>
+            </div>
+            <div class="form-group">
+                <label for="regPassword">Пароль:</label>
+                <input type="password" id="regPassword" name="password" required minlength="6">
+                <div id="regPasswordError" class="error"></div>
+            </div>
+            <div class="form-group">
+                <label for="regConfirmPassword">Подтвердите пароль:</label>
+                <input type="password" id="regConfirmPassword" name="confirmPassword" required>
+                <div id="regConfirmPasswordError" class="error"></div>
+            </div>
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+        <div id="registerSuccess" class="success"></div>
+        <div class="switch-text">
+            Уже есть аккаунт? <span class="switch-link" data-tab="login">Войдите</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Переключение между вкладками
+    document.querySelectorAll('.tab, .switch-link').forEach(element => {
+        element.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-tab');
+
+            // Скрыть все вкладки и убрать активный класс
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Показать выбранную вкладку
+            document.getElementById(tabId + 'Form').classList.add('active');
+            document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+
+            // Очистить сообщения об ошибках и успехе
+            document.querySelectorAll('.error').forEach(el => el.textContent = '');
+            document.querySelectorAll('.success').forEach(el => el.textContent = '');
+        });
+    });
+
+    // Валидация и отправка формы входа
+    document.getElementById('loginFormContent').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Очистка предыдущих ошибок
+        document.getElementById('loginEmailError').textContent = '';
+        document.getElementById('loginPasswordError').textContent = '';
+        document.getElementById('loginSuccess').textContent = '';
+
+        // Получение значений полей
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+
+        // Валидация
+        let isValid = true;
+
+        if (!email) {
+            document.getElementById('loginEmailError').textContent = 'Пожалуйста, введите email';
+            isValid = false;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            document.getElementById('loginEmailError').textContent = 'Пожалуйста, введите корректный email';
+            isValid = false;
+        }
+
+        if (!password) {
+            document.getElementById('loginPasswordError').textContent = 'Пожалуйста, введите пароль';
+            isValid = false;
+        }
+
+        if (!isValid) return;
+
+        // Отправка данных на сервер
+        try {
+            const response = await fetch('http://localhost:8080/signin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById('loginSuccess').textContent = 'Авторизация успешна!';
+                localStorage.setItem('authToken', data.token);
+                console.log('Токен:', data.token);
+                // Здесь можно перенаправить пользователя
+                // window.location.href = '/dashboard';
+            } else {
+                document.getElementById('loginPasswordError').textContent = data.error || 'Ошибка авторизации';
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            document.getElementById('loginPasswordError').textContent = 'Произошла ошибка при отправке запроса';
+        }
+    });
+
+    // Валидация и отправка формы регистрации
+    document.getElementById('registerFormContent').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Очистка предыдущих ошибок
+        document.querySelectorAll('#registerForm .error').forEach(el => el.textContent = '');
+        document.getElementById('registerSuccess').textContent = '';
+
+        // Получение значений полей
+        const username = document.getElementById('regUsername').value;
+        const email = document.getElementById('regEmail').value;
+        const password = document.getElementById('regPassword').value;
+        const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+        // Валидация
+        let isValid = true;
+
+        if (!username) {
+            document.getElementById('regUsernameError').textContent = 'Пожалуйста, введите имя пользователя';
+            isValid = false;
+        } else if (username.length < 3) {
+            document.getElementById('regUsernameError').textContent = 'Имя пользователя должно содержать минимум 3 символа';
+            isValid = false;
+        }
+
+        if (!email) {
+            document.getElementById('regEmailError').textContent = 'Пожалуйста, введите email';
+            isValid = false;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            document.getElementById('regEmailError').textContent = 'Пожалуйста, введите корректный email';
+            isValid = false;
+        }
+
+        if (!password) {
+            document.getElementById('regPasswordError').textContent = 'Пожалуйста, введите пароль';
+            isValid = false;
+        } else if (password.length < 6) {
+            document.getElementById('regPasswordError').textContent = 'Пароль должен содержать минимум 6 символов';
+            isValid = false;
+        }
+
+        if (!confirmPassword) {
+            document.getElementById('regConfirmPasswordError').textContent = 'Пожалуйста, подтвердите пароль';
+            isValid = false;
+        } else if (password !== confirmPassword) {
+            document.getElementById('regConfirmPasswordError').textContent = 'Пароли не совпадают';
+            isValid = false;
+        }
+
+        if (!isValid) return;
+
+        // Отправка данных на сервер
+        try {
+            const response = await fetch('http://localhost:8080/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username,
+                    email: email,
+                    password: password
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById('registerSuccess').textContent = 'Регистрация успешна! Теперь вы можете войти.';
+                // Очищаем форму
+                document.getElementById('registerFormContent').reset();
+                // Автоматически переключаем на вкладку входа
+                document.querySelector('.switch-link[data-tab="login"]').click();
+            } else {
+                document.getElementById('regEmailError').textContent = data.error || 'Ошибка регистрации';
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            document.getElementById('regEmailError').textContent = 'Произошла ошибка при отправке запроса';
+        }
+    });
+</script>
+</body>
+</html>

@@ -27,6 +27,12 @@ const (
 	dbName     = "mydb"
 )
 
+const (
+	RedisHost = "localhost:6379"
+	RedisPass = "5432"
+	RedisDb   = 0
+)
+
 func GetDbUrl() string {
 	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
