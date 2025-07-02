@@ -1,6 +1,9 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 const TaskQueueCallbackName = "task_queue_callback"
 const TaskQueueName = "task_queue"
@@ -31,6 +34,11 @@ const (
 	RedisHost = "localhost:6379"
 	RedisPass = "5432"
 	RedisDb   = 0
+)
+
+var (
+	JWTSecretKey  = "your-very-secret-key"
+	JWTExpiration = 24 * time.Hour
 )
 
 func GetDbUrl() string {

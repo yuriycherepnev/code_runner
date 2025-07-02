@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
 	"time"
@@ -43,6 +44,11 @@ var (
 	redisDb    *redis.Client
 )
 
+type Claims struct {
+	UserID int `json:"user_id"`
+	jwt.RegisteredClaims
+}
+
 func initDb() error {
 	connStr := config.GetDbUrl()
 	var err error
@@ -63,6 +69,52 @@ func initRedis() error {
 	ctx := context.Background()
 	_, err := redisDb.Ping(ctx).Result()
 	return err
+}
+
+func generateToken(userID int) (string, error) {
+	expirationTime := time.Now().Add(config.JWTExpiration)
+
+	claims := &Claims{
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Issuer:    "your-app-name",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(config.JWTSecretKey))
+}
+
+func authMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenString := c.GetHeader("Authorization")
+		if tokenString == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
+			c.Abort()
+			return
+		}
+
+		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+			tokenString = tokenString[7:]
+		}
+
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(config.JWTSecretKey), nil
+		})
+
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		c.Set("user_id", claims.UserID)
+		c.Next()
+	}
 }
 
 func registerUser(c *gin.Context) {
@@ -89,9 +141,10 @@ func registerUser(c *gin.Context) {
 		return
 	}
 
-	token := generateToken()
+	token, err := generateToken(id)
 	if err != nil {
-		log.Printf("Failed to save token to Redis: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
 	}
 
 	response := AuthResponse{
@@ -132,21 +185,22 @@ func loginUser(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-	fmt.Print(string(hashedPassword))
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
 
-	token := generateToken()
+	token, err := generateToken(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
@@ -161,10 +215,6 @@ func loginUser(c *gin.Context) {
 	})
 }
 
-func generateToken() string {
-	return "generated_token_" + fmt.Sprint(time.Now().UnixNano())
-}
-
 func main() {
 	if err := initDb(); err != nil {
 		log.Fatalf("PostgreSQL init error: %v", err)
@@ -177,6 +227,18 @@ func main() {
 	router.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "auth.html", gin.H{
 			"idUser":   22,
+			"userName": "Yuriy",
+		})
+	})
+
+	// Защищенный маршрут с использованием JWT
+	router.GET("/profile", authMiddleware(), func(c *gin.Context) {
+		userID, exist := c.Get("user_id")
+		if !exist {
+			return
+		}
+		c.HTML(http.StatusOK, "profile.html", gin.H{
+			"idUser":   userID,
 			"userName": "Yuriy",
 		})
 	})

@@ -107,28 +107,42 @@
 </div>
 
 <script>
+    function saveAuthData(token, userData) {
+        localStorage.setItem('jwtToken', token);
+        localStorage.setItem('userData', JSON.stringify(userData));
+    }
+
+    function getToken() {
+        return localStorage.getItem('jwtToken');
+    }
+
+    function getAuthHeaders() {
+        const token = getToken();
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? {'Authorization': `Bearer ${token}`} : {})
+        };
+    }
+
     function openTab(tabName) {
-        // Скрыть все формы
         document.querySelectorAll('.form-container').forEach(form => {
             form.classList.remove('active');
         });
 
-        // Показать выбранную форму
         document.getElementById(tabName + '-form').classList.add('active');
 
-        // Обновить активные табы
         document.querySelectorAll('.tab').forEach(tab => {
             tab.classList.remove('active');
         });
         event.currentTarget.classList.add('active');
     }
 
-    // Обработка формы входа
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
+        const messageElement = document.getElementById('loginMessage');
 
         try {
             const response = await fetch('/login', {
@@ -145,12 +159,9 @@
             const data = await response.json();
 
             if (response.ok) {
+                saveAuthData(data.data.token, data.data.user);
+
                 showMessage('loginMessage', 'success', 'Успешный вход! Перенаправление...');
-                // Сохраняем токен и перенаправляем
-                localStorage.setItem('token', data.token);
-                setTimeout(() => {
-                    window.location.href = '/profile';
-                }, 1500);
             } else {
                 showMessage('loginMessage', 'error', data.error || 'Ошибка входа');
             }
@@ -159,7 +170,6 @@
         }
     });
 
-    // Обработка формы регистрации
     document.getElementById('registerForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -188,13 +198,8 @@
             const data = await response.json();
 
             if (response.ok) {
-                showMessage('registerMessage', 'success', 'Регистрация успешна! Вы можете войти.');
-                // Автоматически переключаем на вкладку входа
-                setTimeout(() => {
-                    openTab('login');
-                    document.getElementById('loginEmail').value = email;
-                    document.getElementById('registerForm').reset();
-                }, 1500);
+                saveAuthData(data.data.token, data.data.user);
+                showMessage('registerMessage', 'success', 'Регистрация успешна! Перенаправление...');
             } else {
                 showMessage('registerMessage', 'error', data.error || 'Ошибка регистрации');
             }
@@ -209,11 +214,11 @@
         element.className = 'message ' + type;
         element.style.display = 'block';
 
-        // Скрыть сообщение через 5 секунд
         setTimeout(() => {
             element.style.display = 'none';
         }, 5000);
     }
+
 </script>
 </body>
 </html>
