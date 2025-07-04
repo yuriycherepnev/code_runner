@@ -230,7 +230,6 @@
             if (response.ok) {
                 saveAuthData(data.data.token, data.data.user);
                 showMessage('registerMessage', 'success', 'Регистрация успешна! Перенаправление...');
-                // Перенаправление после успешной регистрации
                 setTimeout(() => {
                     window.location.href = '/profile';
                 }, 500);
