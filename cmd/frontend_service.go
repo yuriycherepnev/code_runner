@@ -58,6 +58,11 @@ var (
 	redisDb    *redis.Client
 )
 
+type SolutionRequest struct {
+	TaskID string `json:"task_id" binding:"required"`
+	Code   string `json:"code" binding:"required"`
+}
+
 type Claims struct {
 	UserID int `json:"user_id"`
 	jwt.RegisteredClaims
@@ -354,6 +359,77 @@ func getTask(c *gin.Context) {
 	})
 }
 
+func SaveSolution(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req SolutionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	_, err := postgresDb.Exec(`
+        INSERT INTO solution (id_task, id_user, code)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (id_task, id_user) 
+        DO UPDATE SET code = EXCLUDED.code`,
+		req.TaskID, userID, req.Code)
+
+	if err != nil {
+		log.Printf("Database error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to save solution",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Solution saved successfully"})
+}
+
+func getSolution(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	taskID, err := strconv.Atoi(c.Param("task_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+	var code string
+	err = postgresDb.QueryRow(`
+		SELECT code FROM solution 
+		WHERE id_task = $1 AND id_user = $2`,
+		taskID, userID.(int)).Scan(&code)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Solution not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get solution"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": code})
+}
+
+func Logout(c *gin.Context) {
+	c.SetCookie("jwtToken", "", -1, "/", "", false, true)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Successfully logged out",
+	})
+}
+
 func main() {
 	if err := initDb(); err != nil {
 		log.Fatalf("PostgreSQL init error: %v", err)
@@ -362,6 +438,13 @@ func main() {
 
 	router := gin.Default()
 	router.LoadHTMLGlob("./templates/*")
+
+	// Обработчик для 404 ошибок
+	router.NoRoute(func(c *gin.Context) {
+		c.HTML(http.StatusNotFound, "404.html", gin.H{
+			"requestedPath": c.Request.URL.Path,
+		})
+	})
 
 	router.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "auth.html", gin.H{})
@@ -381,12 +464,19 @@ func main() {
 		})
 	})
 
-	// Добавляем новые маршруты для задач
 	router.GET("/task", authMiddleware(), getAllTask)
 	router.GET("/task/:id", authMiddleware(), getTask)
 
-	router.POST("/register", registerUser)
-	router.POST("/login", loginUser)
+	router.POST("/register", registerUser) // Убрал authMiddleware, так как регистрация должна быть доступна без авторизации
+	router.POST("/login", loginUser)       // Убрал authMiddleware для логина
+	router.POST("/logout", authMiddleware(), Logout)
+
+	authGroup := router.Group("/")
+	authGroup.Use(authMiddleware())
+	{
+		authGroup.POST("/solution", SaveSolution)
+		authGroup.GET("/solution/:task_id", getSolution)
+	}
 
 	if err := router.Run(":8081"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

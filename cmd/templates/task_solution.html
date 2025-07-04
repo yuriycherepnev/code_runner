@@ -23,7 +23,7 @@
             overflow: hidden;
         }
         .task-header {
-            background-color: #4CAF50;
+            background-color: #3f51b5;
             color: white;
             padding: 15px 20px;
         }
@@ -36,10 +36,10 @@
         }
         .task-description {
             margin-bottom: 30px;
-            padding: 15px;
+            padding: 10px 20px;
             background-color: #f9f9f9;
             border-radius: 4px;
-            border-left: 4px solid #4CAF50;
+            border-left: 4px solid #3f51b5;
         }
         .code-editor {
             margin-bottom: 20px;
@@ -67,34 +67,33 @@
             transition: background-color 0.2s;
         }
         .run-button {
-            background-color: #4CAF50;
+            background-color: #606fc7;
             color: white;
             min-width: 120px;
             min-height: 40px;
         }
         .run-button:hover {
-            background-color: #45a049;
+            background-color: #32408f;
         }
         .save-button {
-            background-color: #2196F3;
+            display: none;
+            background-color: #606fc7;
             color: white;
         }
         .save-button:hover {
-            background-color: #0b7dda;
+            background-color: #32408f;
         }
         .output-container {
-            padding: 15px;
+            padding: 10px 20px;
             background-color: #f0f0f0;
             border-radius: 4px;
-            min-height: 100px;
             font-family: monospace;
-            white-space: pre-wrap;
         }
         .navigation {
             margin-top: 20px;
         }
         .back-link {
-            color: #4CAF50;
+            color: #3f51b5;
             text-decoration: none;
             font-weight: bold;
         }
@@ -124,6 +123,9 @@
             from { transform: rotate(0turn); }
             to { transform: rotate(1turn); }
         }
+        #messages {
+            min-height: 20px;
+        }
     </style>
 </head>
 <body>
@@ -145,8 +147,8 @@
 
         <div class="button-group">
             <button class="button run-button" onclick="runCode()">Выполнить</button>
-<!--            <button class="button save-button" onclick="saveSolution()">Сохранить</button>-->
-<!--            <button class="button" onclick="sendMessage()">Test WS</button>-->
+            <button class="button save-button" onclick="saveSolution()">Сохранить</button>
+            <button class="button" onclick="sendMessage()">Test WS</button>
         </div>
 
         <div class="output-container" id="output">
@@ -164,6 +166,7 @@
     const userData = {
         userName: "{{ .userName }}",
         idUser: "{{ .idUser }}",
+        taskId: "{{ .task.ID }}"
     };
 
     const editor = CodeMirror.fromTextArea(document.getElementById("codeEditor"), {
@@ -184,20 +187,13 @@
         const message = document.createElement("p");
         message.textContent = event.data;
         messages.appendChild(message);
+        const saveButton = document.querySelector(".save-button");
+        saveButton.style.display = 'block';
     };
 
     websocket.onclose = function(event) {
         console.log("Disconnected from WebSocket server");
     };
-
-    function fetchCode() {
-        fetch('/task/01975b05-647e-7ed5-abdd-f412a8a4882b')
-            .then(response => response.json())
-            .then(data => {
-                editor.setValue(atob(JSON.parse(data.code).code));
-            })
-            .catch(error => console.error('Error fetching code:', error));
-    }
 
     function runCode() {
         const runButton = document.querySelector('.run-button');
@@ -214,7 +210,7 @@
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                idTask: 1,
+                idTask: userData.taskId,
                 idUser: userData.idUser,
                 code: btoa(editor.getValue()),
             }),
@@ -228,14 +224,72 @@
             });
     }
 
+    function saveSolution() {
+        const saveButton = document.querySelector('.save-button');
+        const messages = document.getElementById("messages");
+
+        saveButton.classList.add('loading');
+        saveButton.disabled = true;
+        saveButton.textContent = 'Сохранение...';
+
+        fetch('/solution', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`
+            },
+            body: JSON.stringify({
+                task_id: userData.taskId,
+                code: editor.getValue()
+            }),
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка сохранения');
+                }
+                return response.json();
+            })
+            .then(data => {
+                messages.innerHTML = '<p style="color: green">Решение успешно сохранено!</p>';
+            })
+            .catch(error => {
+                messages.innerHTML = `<p style="color: red">Ошибка сохранения: ${error.message}</p>`;
+            })
+            .finally(() => {
+                saveButton.classList.remove('loading');
+                saveButton.disabled = false;
+                saveButton.textContent = 'Сохранить';
+            });
+    }
+
     function sendMessage() {
         const messageInput = document.getElementById("codeEditor");
         websocket.send("01975b05-647e-7ed5-abdd-f412a8a4882b");
         messageInput.value = "";
     }
 
-    fetchCode();
-    setTimeout(sendMessage, 1000);
+    // Загружаем сохраненное решение при загрузке страницы
+    function loadSavedSolution() {
+        fetch(`/solution/${userData.taskId}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.code) {
+                    editor.setValue(data.code);
+                }
+            })
+            .catch(error => console.error('Error loading solution:', error));
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSavedSolution);
 </script>
 
 </body>

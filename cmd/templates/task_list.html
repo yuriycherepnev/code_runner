@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Список задач</title>
+  <title>Список задач Python</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
       margin: 0;
       padding: 20px;
-      background-color: #f5f5f5;
       min-height: 100vh;
     }
     .user-card {
@@ -18,7 +18,7 @@
       margin: 0 auto;
     }
     .toolbar {
-      background-color: #4CAF50;
+      background-color: #3f51b5;
       padding: 15px 20px;
       color: white;
       border-radius: 8px 8px 0 0;
@@ -36,7 +36,7 @@
       margin-top: 10px;
     }
     .toolbar-btn {
-      background-color: #45a049;
+      background-color: #606fc7;
       color: white;
       border: none;
       padding: 8px 16px;
@@ -47,7 +47,7 @@
       display: inline-block;
     }
     .toolbar-btn:hover {
-      background-color: #3d8b40;
+      background-color: #32408f;
     }
     .tasks-container {
       background-color: white;
@@ -61,23 +61,22 @@
       margin: 0;
     }
     .task-item {
-      padding: 15px 0;
       border-bottom: 1px solid #eee;
     }
     .task-item:last-child {
       border-bottom: none;
     }
     .task-link {
+      padding: 15px 10px;
       color: #333;
       text-decoration: none;
       display: block;
-      padding: 8px;
       border-radius: 4px;
       transition: background-color 0.2s;
     }
     .task-link:hover {
       background-color: #f9f9f9;
-      text-decoration: underline;
+      text-decoration: none;
     }
     .task-meta {
       font-size: 14px;
@@ -85,7 +84,7 @@
       margin-top: 5px;
     }
     .logout-btn {
-      background-color: #f44336;
+      background-color: #696969;
       color: white;
       border: none;
       padding: 8px 16px;
@@ -94,7 +93,7 @@
       font-size: 14px;
     }
     .logout-btn:hover {
-      background-color: #d32f2f;
+      background-color: #424242;
     }
   </style>
 </head>
@@ -125,10 +124,14 @@
 </div>
 
 <script>
-  // Обработчик кнопки выхода
-  document.getElementById('logout-btn').addEventListener('click', function() {
-    // Удаляем токен и перенаправляем на страницу входа
-    document.cookie = 'jwtToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  document.getElementById('logout-btn').addEventListener('click', async function () {
+    const response = await fetch('/logout', {
+      method: 'POST'
+    });
+
+    if (!response.ok) {
+      throw new Error('Ошибка выхода');
+    }
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('userData');
     window.location.href = '/';
