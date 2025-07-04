@@ -294,13 +294,15 @@ func main() {
 	router.GET("/profile", authMiddleware(), func(c *gin.Context) {
 		userID, existId := c.Get("user_id")
 		userName, existName := c.Get("user_name")
+		userEmail, existEmail := c.Get("user_email")
 		fmt.Println(userID, userName)
-		if !existId || !existName {
+		if !existId || !existName || !existEmail {
 			return
 		}
 		c.HTML(http.StatusOK, "profile.html", gin.H{
-			"userId":   userID,
-			"userName": userName,
+			"userId":    userID,
+			"userName":  userName,
+			"userEmail": userEmail,
 		})
 	})
 

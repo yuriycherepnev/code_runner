@@ -80,19 +80,18 @@
     <div class="profile-header">
         <div class="avatar" id="avatar">?</div>
         <div class="profile-info">
-            <h2 id="user-name">Загрузка...</h2>
-            <p id="user-email">Загрузка данных...</p>
+            <h2 id="user-email">{{ .userEmail }}</h2>
         </div>
     </div>
 
     <div class="profile-details">
         <div class="detail-row">
-            <div class="detail-label">ID пользователя:</div>
-            <div class="detail-value" id="user-id">{{ .userId }}</div>
-        </div>
-        <div class="detail-row">
             <div class="detail-label">Имя пользователя:</div>
             <div class="detail-value" id="reg-date">{{ .userName }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">ID пользователя:</div>
+            <div class="detail-value" id="user-id">{{ .userId }}</div>
         </div>
     </div>
     <button class="logout-btn" id="logout-btn">Выйти</button>
