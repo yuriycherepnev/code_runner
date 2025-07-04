@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,12 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var user struct {
+	ID    int
+	Name  string
+	Email string
+}
 
 type User struct {
 	Name     string `json:"name" binding:"required"`
@@ -88,31 +95,83 @@ func generateToken(userID int) (string, error) {
 	return token.SignedString([]byte(config.JWTSecretKey))
 }
 
+func extractTokenFromHeader(c *gin.Context) (string, error) {
+	tokenString := c.GetHeader("Authorization")
+	if tokenString == "" {
+		return "", errors.New("authorization header is required")
+	}
+
+	if len(tokenString) > 7 && strings.HasPrefix(tokenString, "Bearer ") {
+		tokenString = tokenString[7:]
+	}
+
+	return tokenString, nil
+}
+
+func extractTokenFromCookie(c *gin.Context) (string, error) {
+	tokenString, err := c.Cookie("jwtToken")
+	if err != nil {
+		return "", errors.New("jwt cookie is required")
+	}
+	return tokenString, nil
+}
+
+func parseToken(tokenString string) (*Claims, error) {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(config.JWTSecretKey), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, errors.New("invalid token")
+	}
+
+	return claims, nil
+}
+
 func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenString := c.GetHeader("Authorization")
-		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
+		tokenString, err := extractTokenFromHeader(c)
+		if err != nil {
+			tokenString, err = extractTokenFromCookie(c)
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token is required"})
+				c.Abort()
+				return
+			}
+		}
+
+		claims, err := parseToken(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: " + err.Error()})
 			c.Abort()
 			return
 		}
 
-		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
-			tokenString = tokenString[7:]
-		}
+		err = postgresDb.QueryRow(`
+			SELECT id, name, email 
+			FROM "user" 
+			WHERE id = $1`, claims.UserID).
+			Scan(&user.ID, &user.Name, &user.Email)
 
-		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return []byte(config.JWTSecretKey), nil
-		})
-
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+			}
 			c.Abort()
 			return
 		}
 
-		c.Set("user_id", claims.UserID)
+		c.Set("user_id", user.ID)
+		c.Set("user_name", user.Name)
+		c.Set("user_email", user.Email)
+
 		c.Next()
 	}
 }
@@ -146,6 +205,8 @@ func registerUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
+
+	c.SetCookie("jwtToken", token, int(config.JWTExpiration.Seconds()), "/", "", false, true)
 
 	response := AuthResponse{
 		User: UserResponse{
@@ -202,6 +263,8 @@ func loginUser(c *gin.Context) {
 		return
 	}
 
+	c.SetCookie("jwtToken", token, int(config.JWTExpiration.Seconds()), "/", "", false, true)
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
 		"data": AuthResponse{
@@ -225,21 +288,19 @@ func main() {
 	router.LoadHTMLGlob("./templates/*")
 
 	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "auth.html", gin.H{
-			"idUser":   22,
-			"userName": "Yuriy",
-		})
+		c.HTML(http.StatusOK, "auth.html", gin.H{})
 	})
 
-	// Защищенный маршрут с использованием JWT
 	router.GET("/profile", authMiddleware(), func(c *gin.Context) {
-		userID, exist := c.Get("user_id")
-		if !exist {
+		userID, existId := c.Get("user_id")
+		userName, existName := c.Get("user_name")
+		fmt.Println(userID, userName)
+		if !existId || !existName {
 			return
 		}
 		c.HTML(http.StatusOK, "profile.html", gin.H{
-			"idUser":   userID,
-			"userName": "Yuriy",
+			"userId":   userID,
+			"userName": userName,
 		})
 	})
 
