@@ -7,15 +7,54 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
+            margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .user-card {
+            width: 100%;
+            max-width: 800px;
+        }
+        .toolbar {
+            background-color: #4CAF50;
+            padding: 15px 20px;
+            color: white;
+            border-radius: 8px 8px 0 0;
+        }
+        .toolbar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .toolbar-title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .toolbar-navigation {
+            margin-top: 10px;
+        }
+        .toolbar-btn {
+            background-color: #45a049;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .toolbar-btn:hover {
+            background-color: #3d8b40;
         }
         .profile-container {
             background-color: white;
             padding: 30px;
-            border-radius: 8px;
+            border-radius: 0 0 8px 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .profile-header {
@@ -64,11 +103,10 @@
             background-color: #f44336;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
-            margin-top: 20px;
+            font-size: 14px;
         }
         .logout-btn:hover {
             background-color: #d32f2f;
@@ -76,26 +114,57 @@
     </style>
 </head>
 <body>
-<div class="profile-container">
-    <div class="profile-header">
-        <div class="avatar" id="avatar">?</div>
-        <div class="profile-info">
-            <h2 id="user-email">{{ .userEmail }}</h2>
+<div class="user-card">
+    <div class="toolbar">
+        <div class="toolbar-header">
+            <div class="toolbar-title">Профиль пользователя</div>
+            <button class="logout-btn" id="logout-btn">Выйти</button>
+        </div>
+
+        <div class="toolbar-navigation">
+            <a href="/task" class="toolbar-btn">Задачи</a>
         </div>
     </div>
 
-    <div class="profile-details">
-        <div class="detail-row">
-            <div class="detail-label">Имя пользователя:</div>
-            <div class="detail-value" id="reg-date">{{ .userName }}</div>
+    <div class="profile-container">
+        <div class="profile-header">
+            <div class="avatar" id="avatar">?</div>
+            <div class="profile-info">
+                <h2 id="user-email">{{ .userEmail }}</h2>
+            </div>
         </div>
-        <div class="detail-row">
-            <div class="detail-label">ID пользователя:</div>
-            <div class="detail-value" id="user-id">{{ .userId }}</div>
+
+        <div class="profile-details">
+            <div class="detail-row">
+                <div class="detail-label">Имя пользователя:</div>
+                <div class="detail-value" id="reg-date">{{ .userName }}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">ID пользователя:</div>
+                <div class="detail-value" id="user-id">{{ .userId }}</div>
+            </div>
         </div>
     </div>
-    <button class="logout-btn" id="logout-btn">Выйти</button>
 </div>
 
+<script>
+    // Генерация инициалов для аватара
+    const userName = document.getElementById('reg-date').textContent;
+    const avatar = document.getElementById('avatar');
+
+    if (userName) {
+        const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase();
+        avatar.textContent = initials || '?';
+    }
+
+    // Обработчик кнопки выхода
+    document.getElementById('logout-btn').addEventListener('click', function() {
+        // Удаляем токен и перенаправляем на страницу входа
+        document.cookie = 'jwtToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        localStorage.removeItem('jwtToken');
+        localStorage.removeItem('userData');
+        window.location.href = '/';
+    });
+</script>
 </body>
 </html>

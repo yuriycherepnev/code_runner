@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Список задач</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+      min-height: 100vh;
+    }
+    .user-card {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .toolbar {
+      background-color: #4CAF50;
+      padding: 15px 20px;
+      color: white;
+      border-radius: 8px 8px 0 0;
+    }
+    .toolbar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .toolbar-title {
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .toolbar-navigation {
+      margin-top: 10px;
+    }
+    .toolbar-btn {
+      background-color: #45a049;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .toolbar-btn:hover {
+      background-color: #3d8b40;
+    }
+    .tasks-container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .task-list {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+    }
+    .task-item {
+      padding: 15px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .task-item:last-child {
+      border-bottom: none;
+    }
+    .task-link {
+      color: #333;
+      text-decoration: none;
+      display: block;
+      padding: 8px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+    .task-link:hover {
+      background-color: #f9f9f9;
+      text-decoration: underline;
+    }
+    .task-meta {
+      font-size: 14px;
+      color: #666;
+      margin-top: 5px;
+    }
+    .logout-btn {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .logout-btn:hover {
+      background-color: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+<div class="user-card">
+  <div class="toolbar">
+    <div class="toolbar-header">
+      <div class="toolbar-title">Список задач</div>
+      <button class="logout-btn" id="logout-btn">Выйти</button>
+    </div>
+
+    <div class="toolbar-navigation">
+      <a href="/profile" class="toolbar-btn">Профиль</a>
+    </div>
+  </div>
+
+  <div class="tasks-container">
+    <ul class="task-list">
+      {{range .task_list}}
+      <li class="task-item">
+        <a href="/task/{{.ID}}" class="task-link">
+          {{.Text}}
+        </a>
+      </li>
+      {{end}}
+    </ul>
+  </div>
+</div>
+
+<script>
+  // Обработчик кнопки выхода
+  document.getElementById('logout-btn').addEventListener('click', function() {
+    // Удаляем токен и перенаправляем на страницу входа
+    document.cookie = 'jwtToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    localStorage.removeItem('jwtToken');
+    localStorage.removeItem('userData');
+    window.location.href = '/';
+  });
+</script>
+</body>
+</html>

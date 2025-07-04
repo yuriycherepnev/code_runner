@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Задача #{{ .task.ID }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/python/python.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .task-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .task-header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+        }
+        .task-title {
+            margin: 0;
+            font-size: 20px;
+        }
+        .task-content {
+            padding: 20px;
+        }
+        .task-description {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+        }
+        .code-editor {
+            margin-bottom: 20px;
+        }
+        .CodeMirror {
+            border: 1px solid #ddd;
+            height: auto;
+            border-radius: 4px;
+        }
+        .CodeMirror-scroll {
+            overflow-y: hidden;
+            overflow-x: auto;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        .run-button {
+            background-color: #4CAF50;
+            color: white;
+            min-width: 120px;
+            min-height: 40px;
+        }
+        .run-button:hover {
+            background-color: #45a049;
+        }
+        .save-button {
+            background-color: #2196F3;
+            color: white;
+        }
+        .save-button:hover {
+            background-color: #0b7dda;
+        }
+        .output-container {
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            min-height: 100px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .navigation {
+            margin-top: 20px;
+        }
+        .back-link {
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .button.loading {
+            position: relative;
+            pointer-events: none;
+        }
+        .button.loading::after {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: auto;
+            border: 3px solid transparent;
+            border-top-color: white;
+            border-radius: 50%;
+            animation: button-loading-spinner 1s ease infinite;
+        }
+        @keyframes button-loading-spinner {
+            from { transform: rotate(0turn); }
+            to { transform: rotate(1turn); }
+        }
+    </style>
+</head>
+<body>
+<div class="task-container">
+    <div class="task-header">
+        <h1 class="task-title">Задача #{{ .task.ID }}</h1>
+    </div>
+
+    <div class="task-content">
+        <div class="task-description">
+            <h3>Условие задачи:</h3>
+            <p>{{ .task.Text }}</p>
+        </div>
+
+        <div class="code-editor">
+            <h3>Ваше решение:</h3>
+            <textarea id="codeEditor">{{ .solution }}</textarea>
+        </div>
+
+        <div class="button-group">
+            <button class="button run-button" onclick="runCode()">Выполнить</button>
+<!--            <button class="button save-button" onclick="saveSolution()">Сохранить</button>-->
+<!--            <button class="button" onclick="sendMessage()">Test WS</button>-->
+        </div>
+
+        <div class="output-container" id="output">
+            <h3>Результат выполнения:</h3>
+            <div id="messages"></div>
+        </div>
+
+        <div class="navigation">
+            <a href="/task" class="back-link">← Вернуться к списку задач</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    const userData = {
+        userName: "{{ .userName }}",
+        idUser: "{{ .idUser }}",
+    };
+
+    const editor = CodeMirror.fromTextArea(document.getElementById("codeEditor"), {
+        mode: "javascript",
+        lineNumbers: true,
+        theme: "default"
+    });
+
+    const websocket = new WebSocket("ws://localhost:8082/ws");
+
+    websocket.onopen = function(event) {
+        console.log("Connected to WebSocket server");
+    };
+
+    websocket.onmessage = function(event) {
+        const messages = document.getElementById("messages");
+        messages.innerHTML = '';
+        const message = document.createElement("p");
+        message.textContent = event.data;
+        messages.appendChild(message);
+    };
+
+    websocket.onclose = function(event) {
+        console.log("Disconnected from WebSocket server");
+    };
+
+    function fetchCode() {
+        fetch('/task/01975b05-647e-7ed5-abdd-f412a8a4882b')
+            .then(response => response.json())
+            .then(data => {
+                editor.setValue(atob(JSON.parse(data.code).code));
+            })
+            .catch(error => console.error('Error fetching code:', error));
+    }
+
+    function runCode() {
+        const runButton = document.querySelector('.run-button');
+        const messages = document.getElementById("messages");
+
+        runButton.classList.add('loading');
+        runButton.disabled = true;
+        runButton.textContent = '';
+        messages.innerHTML = '<p>Выполнение...</p>';
+
+        fetch('http://127.0.0.1:3000/run', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                idTask: 1,
+                idUser: userData.idUser,
+                code: btoa(editor.getValue()),
+            }),
+        })
+            .then(response => response.json())
+            .catch(error => console.error('Error updating code:', error))
+            .finally(() => {
+                runButton.classList.remove('loading');
+                runButton.disabled = false;
+                runButton.textContent = 'Выполнить';
+            });
+    }
+
+    function sendMessage() {
+        const messageInput = document.getElementById("codeEditor");
+        websocket.send("01975b05-647e-7ed5-abdd-f412a8a4882b");
+        messageInput.value = "";
+    }
+
+    fetchCode();
+    setTimeout(sendMessage, 1000);
+</script>
+
+</body>
+</html>

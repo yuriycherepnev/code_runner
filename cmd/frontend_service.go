@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,12 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type Task struct {
+	ID     int    `json:"id"`
+	Text   string `json:"text"`
+	IdLang int    `json:"id_lang"`
+}
 
 var user struct {
 	ID    int
@@ -278,6 +285,75 @@ func loginUser(c *gin.Context) {
 	})
 }
 
+func getAllTask(c *gin.Context) {
+	rows, err := postgresDb.Query(`
+        SELECT id, text, id_lang
+        FROM task`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tasks: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var taskList []Task
+
+	for rows.Next() {
+		var task Task
+		err := rows.Scan(
+			&task.ID,
+			&task.Text,
+			&task.IdLang,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan task: " + err.Error()})
+			return
+		}
+		taskList = append(taskList, task)
+	}
+
+	if err = rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error after scanning rows: " + err.Error()})
+		return
+	}
+
+	c.HTML(http.StatusOK, "task_list.html", gin.H{
+		"task_list": taskList,
+	})
+}
+
+func getTask(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	var task Task
+	err = postgresDb.QueryRow(`
+        SELECT id, text, id_lang
+        FROM task
+        WHERE id = $1`, id).
+		Scan(
+			&task.ID,
+			&task.Text,
+			&task.IdLang,
+		)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Task not found: " + err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error: " + err.Error()})
+		}
+		return
+	}
+
+	c.HTML(http.StatusOK, "task_solution.html", gin.H{
+		"task": task,
+	})
+}
+
 func main() {
 	if err := initDb(); err != nil {
 		log.Fatalf("PostgreSQL init error: %v", err)
@@ -295,7 +371,6 @@ func main() {
 		userID, existId := c.Get("user_id")
 		userName, existName := c.Get("user_name")
 		userEmail, existEmail := c.Get("user_email")
-		fmt.Println(userID, userName)
 		if !existId || !existName || !existEmail {
 			return
 		}
@@ -305,6 +380,10 @@ func main() {
 			"userEmail": userEmail,
 		})
 	})
+
+	// Добавляем новые маршруты для задач
+	router.GET("/task", authMiddleware(), getAllTask)
+	router.GET("/task/:id", authMiddleware(), getTask)
 
 	router.POST("/register", registerUser)
 	router.POST("/login", loginUser)
